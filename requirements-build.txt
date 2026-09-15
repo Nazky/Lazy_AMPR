@@ -1,0 +1,5 @@
+-r requirements.txt
+PyInstaller>=6.22,<7
+ruff>=0.16,<0.17
+bandit>=1.9,<2
+Pillow

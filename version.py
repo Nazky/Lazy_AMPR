@@ -1,0 +1,2 @@
+APP_NAME = "Lazy_AMPR"
+VERSION = "0.0.1"
