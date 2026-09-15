@@ -79,3 +79,4 @@ The shared Python/UI code contains macOS-aware paths and browser/file-manager in
 - [ ] Add exFAT mount support on Linux
 - [ ] Add better download manager for TOML files
 - [ ] Add more games support
+- [ ] Making a good tuto to use the software (too tired to do it right now lol)
