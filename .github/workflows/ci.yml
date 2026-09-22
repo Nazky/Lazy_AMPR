@@ -1,0 +1,172 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+    paths-ignore: ["**/*.md"]
+  pull_request:
+    paths-ignore: ["**/*.md"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHON_VERSION: "3.12"
+  QT_QPA_PLATFORM: offscreen
+
+jobs:
+  test:
+    name: Unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025, macos-15]
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: Install Qt runtime libraries (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            libegl1 libgl1 libopengl0 libxkbcommon0 libxkbcommon-x11-0 \
+            libxcb-cursor0 libdbus-1-3 libfontconfig1 libglib2.0-0t64
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  build-macos:
+    name: Build macOS (${{ matrix.arch }})
+    needs: test
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          # If GitHub retires the Intel image, switch to macos-26-intel.
+          - runner: macos-15-intel
+            arch: x86_64
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: Build app bundle
+        env:
+          PYTHON: python
+          LAZY_AMPR_BUILD_VENV: ${{ runner.temp }}/venv
+          LAZY_AMPR_RELEASE_BASE: ${{ runner.temp }}/release
+          EXPECTED_ARCH: ${{ matrix.arch }}
+        run: |
+          test "$(uname -m)" = "$EXPECTED_ARCH" || { echo "runner is $(uname -m), expected $EXPECTED_ARCH" >&2; exit 1; }
+          ./build_macos.sh
+          release_root="$(ls -d "$RUNNER_TEMP"/release/*-macos-"$EXPECTED_ARCH")"
+          echo "RELEASE_ROOT=$release_root" >> "$GITHUB_ENV"
+
+      - name: Inspect and smoke test packaged app
+        run: |
+          app="$RELEASE_ROOT/dist/Lazy_AMPR.app"
+          lipo -archs "$app/Contents/MacOS/Lazy_AMPR"
+          plutil -p "$app/Contents/Info.plist" | grep -E 'CFBundleIdentifier|CFBundleShortVersionString|LSMinimumSystemVersion'
+          "$app/Contents/MacOS/workers/ampr_pack/ampr_pack" --help > /dev/null
+          "$app/Contents/MacOS/Lazy_AMPR" --smoke-test
+          "$app/Contents/MacOS/Lazy_AMPR" --release-ui-qa="$RUNNER_TEMP/ui-qa"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Lazy_AMPR-macOS-${{ matrix.arch }}
+          # Upload the zip, never the .app directory: upload-artifact drops
+          # symlinks, permissions and extended attributes.
+          path: |
+            ${{ env.RELEASE_ROOT }}/Lazy_AMPR-*-macOS-${{ matrix.arch }}.zip
+            ${{ env.RELEASE_ROOT }}/SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload UI QA captures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ui-qa-macOS-${{ matrix.arch }}
+          path: ${{ runner.temp }}/ui-qa
+          if-no-files-found: ignore
+          retention-days: 7
+
+  release:
+    name: GitHub Release
+    needs: build-macos
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check tag matches version.py
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="$(python3 -c 'from version import VERSION; print(VERSION)')"
+          test "v$version" = "$TAG" || { echo "tag $TAG does not match version.py (v$version)" >&2; exit 1; }
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: Lazy_AMPR-macOS-*
+          path: dist
+
+      - name: Merge checksums
+        run: |
+          cat dist/*/SHA256SUMS.txt > dist/SHA256SUMS-macOS.txt
+          cat dist/SHA256SUMS-macOS.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            dist/*/Lazy_AMPR-*-macOS-*.zip
+            dist/SHA256SUMS-macOS.txt

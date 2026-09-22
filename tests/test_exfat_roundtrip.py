@@ -1,5 +1,6 @@
 import shutil
 import struct
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,14 @@ class ExfatRoundTripTests(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.work_dir, ignore_errors=True)
+
+    @unittest.skipUnless(sys.platform == "darwin", "FATtools shim only applies on macOS")
+    def test_fattools_sizes_regular_image_files_on_macos(self):
+        from FATtools import disk as fattools_disk
+
+        image = self.work_dir / "regular.img"
+        image.write_bytes(b"\0" * 4096)
+        self.assertEqual(fattools_disk.get_size(str(image)), 4096)
 
     def test_shadowmount_style_raw_image_extracts(self):
         source = self.work_dir / "source"

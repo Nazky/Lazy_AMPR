@@ -29,6 +29,11 @@ class MountedImage:
         return Path(f"{self.drive_letter}:\\")
 
 
+def supports_image_mounting() -> bool:
+    """Direct exFAT image mounting is implemented with OSFMount, which is Windows-only."""
+    return sys.platform == "win32"
+
+
 def find_osfmount() -> Path | None:
     if sys.platform != "win32":
         return None

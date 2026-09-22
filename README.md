@@ -1,6 +1,6 @@
 # Lazy_AMPR
 
-Lazy_AMPR is a desktop front end for building or extracting AMPR LZ4 asset packs. It integrates the [`ampr_emu`](https://github.com/drakmor/ampr_emu) packing tools and supports folder-based workflows on Windows and Linux. Source executables are not downgraded, rewritten, or signed by the application.
+Lazy_AMPR is a desktop front end for building or extracting AMPR LZ4 asset packs. It integrates the [`ampr_emu`](https://github.com/drakmor/ampr_emu) packing tools and supports folder-based workflows on Windows, Linux and macOS. Source executables are not downgraded, rewritten, or signed by the application.
 
 The main purpose of Lazy_AMPR is to help reduce game space. It is not a general-purpose game modification suite.
 
@@ -15,6 +15,8 @@ For best results, use a TOML profile generated from traces for the game you are 
 On Windows, ShadowMountPlus exFAT images can be mounted read-only and processed directly with OSFMount 3, without a temporary full-image extraction. The Windows package requests administrator privileges because OSFMount requires them; its mount and unmount commands run without opening a Command Prompt window.
 
 On Linux, mount the image with an appropriate system tool first, then select the mounted game folder in Lazy_AMPR. Direct OSFMount image mounting remains Windows-only. Linux exFAT mount support is planned; see the TODO list below.
+
+On macOS, mount the image first with Disk Utility or `hdiutil attach -readonly <image>`, then select the mounted game folder. The "exFAT image" picker is only shown on Windows; native macOS mounting through `hdiutil` is planned.
 
 ## Run from source
 
@@ -58,11 +60,33 @@ Run the clean PyInstaller build from a native Linux environment:
 
 The Linux build produces an AppImage. The AppImage and its SHA-256 manifest are written under the parent `release` directory. Folder-based packing and extraction are supported; direct OSFMount image mounting remains Windows-only.
 
+## Build for macOS
+
+Run the native PyInstaller build on a Mac with Python 3.12 available:
+
+```bash
+PYTHON=python3.12 ./build_macos.sh
+```
+
+The script creates `.venv-macos` on first use, builds `Lazy_AMPR.app` for the host architecture, and writes `Lazy_AMPR-<version>-macOS-<arm64|x86_64>.zip` plus `SHA256SUMS.txt` under the parent `release` directory (override the base with `LAZY_AMPR_RELEASE_BASE`). Apple Silicon and Intel builds are separate; the app requires macOS 13 or newer.
+
+The bundle is ad-hoc signed and not notarized, so Gatekeeper blocks the first launch of a downloaded copy. Either remove the quarantine flag once:
+
+```bash
+xattr -dr com.apple.quarantine Lazy_AMPR.app
+```
+
+or right-click the app, choose Open, and confirm in System Settings > Privacy & Security.
+
+## Continuous integration
+
+Every push and pull request runs the unit tests on Ubuntu, Windows and macOS, then builds the macOS app for arm64 and x86_64 and uploads the zips as workflow artifacts. Pushing a tag `vX.Y.Z` that matches `version.py` publishes those zips and a merged checksum file as a GitHub Release.
+
 ## Notes
 
 The PS5 PRX sources under `external/`[`ampr_emu`](https://github.com/drakmor/ampr_emu) require the separate `ps5-payload-sdk`; they are not compiled by either desktop build.
 
-The shared Python/UI code contains macOS-aware paths and browser/file-manager integration, but no macOS release has been validated yet.
+macOS builds for Apple Silicon and Intel are produced by CI. They are ad-hoc signed only; see "Build for macOS" for the first-launch step.
 
 ## Credits
 
@@ -75,7 +99,7 @@ The shared Python/UI code contains macOS-aware paths and browser/file-manager in
 
 - [ ] Add a logo
 - [ ] Add better exFAT support
-- [ ] Add macOS support
+- [x] Add macOS support
 - [ ] Add exFAT mount support on Linux
 - [ ] Add better download manager for TOML files
 - [ ] Add more games support

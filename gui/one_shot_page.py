@@ -26,7 +26,7 @@ from gui.widgets import AnimatedButton, LevelSlider, SectionCard
 from utils.cross_platform import normalize_path
 from utils.exfat_utils import is_exfat_image
 from utils.file_ops import detect_games
-from utils.osfmount import mount_exfat_image, unmount_exfat_image
+from utils.osfmount import mount_exfat_image, supports_image_mounting, unmount_exfat_image
 
 
 def _w(layout):
@@ -83,7 +83,11 @@ class OneShotPage(QWidget):
         ew.setSpacing(10)
         self.drop_icon = QLabel()
         self.drop_icon.setAlignment(Qt.AlignCenter)
-        t1 = QLabel("Drop a PS5 game folder or .exFAT file")
+        t1 = QLabel(
+            "Drop a PS5 game folder or .exFAT file"
+            if supports_image_mounting()
+            else "Drop a PS5 game folder"
+        )
         t1.setAlignment(Qt.AlignCenter)
         t1.setStyleSheet("font-size: 20px; font-weight: 700;")
         t2 = QLabel("or click anywhere in this area to browse")
@@ -384,6 +388,11 @@ class OneShotPage(QWidget):
 
     # ------------------------------------------------------------ public API
     def browse(self):
+        if not supports_image_mounting():
+            # Image mounting is Windows-only (OSFMount); a folder is the only choice.
+            self._browse_folder()
+            return
+
         choice = QMessageBox(self)
         choice.setWindowTitle("Select input")
         choice.setText("Choose a PS5 game folder or a ShadowMountPlus exFAT image.")
@@ -393,9 +402,7 @@ class OneShotPage(QWidget):
         choice.exec()
 
         if choice.clickedButton() is folder_btn:
-            p = QFileDialog.getExistingDirectory(self, "Select a PS5 game folder")
-            if p:
-                self.load_input(Path(p))
+            self._browse_folder()
         elif choice.clickedButton() is image_btn:
             p, _ = QFileDialog.getOpenFileName(
                 self,
@@ -413,6 +420,11 @@ class OneShotPage(QWidget):
                     )
                 else:
                     self.load_input(path)
+
+    def _browse_folder(self):
+        p = QFileDialog.getExistingDirectory(self, "Select a PS5 game folder")
+        if p:
+            self.load_input(Path(p))
 
     def set_folder(self, path: Path):
         self.game_dir = path

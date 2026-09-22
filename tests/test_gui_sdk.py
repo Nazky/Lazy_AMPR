@@ -60,6 +60,34 @@ class BatchSelectionTests(unittest.TestCase):
         self.assertFalse(hasattr(settings, "backport_cb"))
         self.assertFalse(hasattr(settings, "fl_edit"))
 
+    def test_browse_offers_only_folders_where_mounting_is_unsupported(self):
+        page = OneShotPage()
+        with (
+            patch("gui.one_shot_page.supports_image_mounting", return_value=False),
+            patch("gui.one_shot_page.QMessageBox") as chooser,
+            patch(
+                "gui.one_shot_page.QFileDialog.getExistingDirectory", return_value=""
+            ) as pick_folder,
+        ):
+            page.browse()
+        chooser.assert_not_called()
+        pick_folder.assert_called_once()
+
+    def test_browse_offers_exfat_image_where_mounting_is_supported(self):
+        page = OneShotPage()
+        with (
+            patch("gui.one_shot_page.supports_image_mounting", return_value=True),
+            patch("gui.one_shot_page.QMessageBox") as chooser,
+        ):
+            chooser.return_value.clickedButton.return_value = None
+            page.browse()
+        labels = [
+            call.args[0]
+            for call in chooser.return_value.addButton.call_args_list
+            if call.args and isinstance(call.args[0], str)
+        ]
+        self.assertEqual(labels, ["Game folder", "exFAT image"])
+
     def test_one_shot_mounts_exfat_instead_of_extracting_it(self):
         page = OneShotPage()
         with tempfile.TemporaryDirectory() as temporary:

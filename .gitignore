@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# Virtual environments (build_linux.sh / build_macos.sh create .venv-<os>)
+.venv*/
+
+# PyInstaller and release output
+build/
+dist/
+release/
+Lazy_AMPR.AppDir/
+
+# OS noise
+.DS_Store

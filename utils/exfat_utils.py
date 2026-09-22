@@ -1,14 +1,46 @@
 """exFAT image detection and extraction using FATtools."""
 
 import logging
+import os
 import shutil
 import struct
+import sys
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 _EXFAT_OEM_NAME = b"EXFAT   "
+
+
+def _patch_fattools_macos_file_size() -> None:
+    """Make FATtools open regular image files on macOS.
+
+    FATtools 1.1.x sizes every non-Windows path with the DKIOCGETBLOCKCOUNT
+    ioctl on macOS. That only works for block devices; for a plain image file
+    the ioctl fails with ENOTTY before the volume is opened. Fall back to the
+    file size for regular files and keep the original behaviour for devices.
+    """
+    if sys.platform != "darwin":
+        return
+    try:
+        from FATtools import disk as fattools_disk
+    except ImportError:
+        return
+    original = getattr(fattools_disk, "get_size", None)
+    if original is None or getattr(original, "_lazy_ampr_patched", False):
+        return
+
+    def get_size(name):
+        if os.path.isfile(name):
+            return os.path.getsize(name)
+        return original(name)
+
+    get_size._lazy_ampr_patched = True
+    fattools_disk.get_size = get_size
+
+
+_patch_fattools_macos_file_size()
 
 
 def _has_exfat_boot_sector(file_path: Path, offset: int = 0) -> bool:
