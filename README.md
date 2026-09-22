@@ -94,6 +94,7 @@ macOS builds for Apple Silicon and Intel are produced by CI. They are ad-hoc sig
 - Deckerr97 ([GitHub](https://github.com/kerrdec97) | [Twitter](https://x.com/kerrdec97))
 - Pippo ([Twitter](https://x.com/itz_pippo))
 - Drakmor ([GitHub](https://github.com/drakmor))
+- williamtcastro ([GitHub](https://github.com/williamtcastro)) | [Twitter](https://x.com/williamtcastro)) 
 
 ## TODO
 
