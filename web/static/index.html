@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lazy AMPR</title>
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Lazy AMPR <span id="version" class="muted"></span></div>
+    <nav id="nav">
+      <button data-tab="games" class="active">Games</button>
+      <button data-tab="extract">Extract</button>
+      <button data-tab="jobs">Jobs <span id="jobs-badge" class="badge hidden">0</span></button>
+      <button data-tab="tomls">TOML profiles</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============================== GAMES ============================== -->
+    <section id="tab-games" class="tab active">
+      <div class="card">
+        <h2>Game library</h2>
+        <p class="muted">Pick a folder that contains one or more PS5 game folders (a game folder has <code>sce_sys/param.json</code>). The output goes to the folder set under Settings, or <code>&lt;game&gt;_AMPR</code> next to it.</p>
+        <div class="row">
+          <input id="games-path" type="text" placeholder="/games" spellcheck="false">
+          <button class="secondary" data-pick="games-path">Browse…</button>
+          <button id="games-scan">Scan</button>
+        </div>
+      </div>
+
+      <div id="games-toolbar" class="card toolbar hidden">
+        <label class="check"><input type="checkbox" id="games-select-all"> Select all</label>
+        <div class="field-inline">
+          <label for="games-level">LZ4 level <b id="games-level-value">9</b></label>
+          <input type="range" id="games-level" min="1" max="12" value="9">
+        </div>
+        <label class="check"><input type="checkbox" id="games-skip-verify"> Skip verification</label>
+        <span class="spacer"></span>
+        <button id="games-pack-selected" disabled>Pack selected (0)</button>
+      </div>
+
+      <div id="games-empty" class="empty hidden">No PS5 game folders found here.</div>
+      <div id="games-grid" class="grid"></div>
+    </section>
+
+    <!-- ============================== EXTRACT ============================== -->
+    <section id="tab-extract" class="tab">
+      <div class="card">
+        <h2>Extract an AMPR-packed game</h2>
+        <p class="muted">Rebuilds the original game tree from a folder that contains <code>ampr_assets.index</code> and the <code>.pak</code> volumes.</p>
+        <label class="label" for="extract-source">Packed game folder</label>
+        <div class="row">
+          <input id="extract-source" type="text" placeholder="/output/MyGame_AMPR" spellcheck="false">
+          <button class="secondary" data-pick="extract-source">Browse…</button>
+        </div>
+        <label class="label" for="extract-output">Output folder <span class="muted">(empty = &lt;name&gt;_EXTRACTED in the output folder)</span></label>
+        <div class="row">
+          <input id="extract-output" type="text" placeholder="" spellcheck="false">
+          <button class="secondary" data-pick="extract-output" data-allow-new="1">Browse…</button>
+        </div>
+        <div class="row end"><button id="extract-start">Start extraction</button></div>
+      </div>
+    </section>
+
+    <!-- ============================== JOBS ============================== -->
+    <section id="tab-jobs" class="tab">
+      <div class="card toolbar">
+        <h2 class="grow">Jobs</h2>
+        <button class="secondary" id="jobs-clear">Clear finished</button>
+      </div>
+      <p class="muted pad">Jobs run one after another. You can close the browser; they keep running in the container.</p>
+      <div id="jobs-empty" class="empty">No jobs yet.</div>
+      <div id="jobs-list"></div>
+    </section>
+
+    <!-- ============================== TOML ============================== -->
+    <section id="tab-tomls" class="tab">
+      <div class="card">
+        <h2>TOML profiles</h2>
+        <p class="muted">Trace-generated profiles give the best results. Profiles are matched to games by title ID or name; you can also link one manually on a game card. Stored in <code id="toml-dir"></code>.</p>
+        <div class="row wrap">
+          <label class="button secondary">Upload .toml<input type="file" id="toml-upload" accept=".toml" multiple hidden></label>
+          <button class="secondary" id="toml-new">New / paste</button>
+        </div>
+        <label class="label" for="toml-url">Import from URL <span class="muted">(direct .toml link or GitHub repo/tree URL)</span></label>
+        <div class="row">
+          <input id="toml-url" type="text" placeholder="https://github.com/owner/repo/tree/main/profiles" spellcheck="false">
+          <button id="toml-fetch" class="secondary">Fetch</button>
+        </div>
+        <div id="toml-remote" class="remote-list"></div>
+      </div>
+      <div id="toml-list"></div>
+    </section>
+
+    <!-- ============================== SETTINGS ============================== -->
+    <section id="tab-settings" class="tab">
+      <form id="settings-form" class="card">
+        <h2>Settings</h2>
+        <label class="label" for="s-output_dir">Output folder <span class="muted">(empty = &lt;game&gt;_AMPR next to the game)</span></label>
+        <div class="row">
+          <input id="s-output_dir" name="output_dir" type="text" spellcheck="false">
+          <button type="button" class="secondary" data-pick="s-output_dir" data-allow-new="1">Browse…</button>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label class="label" for="s-lz4_level">Default LZ4 level <b id="s-lz4_level-value"></b></label>
+            <input id="s-lz4_level" name="lz4_level" type="range" min="1" max="12">
+            <p class="hint">1–4 fast mode, 5–12 high compression (slower).</p>
+          </div>
+          <div>
+            <label class="label" for="s-block_size_kib">Block size</label>
+            <select id="s-block_size_kib" name="block_size_kib">
+              <option value="16">16 KiB</option><option value="32">32 KiB</option>
+              <option value="64">64 KiB</option><option value="128">128 KiB</option>
+              <option value="256">256 KiB</option><option value="512">512 KiB</option>
+              <option value="1024">1 MiB</option>
+            </select>
+            <p class="hint">Used for auto-generated profiles.</p>
+          </div>
+          <div>
+            <label class="label" for="s-workers">Worker threads <span class="muted">(empty = auto)</span></label>
+            <input id="s-workers" name="workers" type="number" min="1" max="256" placeholder="auto">
+          </div>
+          <div>
+            <label class="label" for="s-decoded_cache_mib">Runtime decoded cache (MiB)</label>
+            <input id="s-decoded_cache_mib" name="decoded_cache_mib" type="number" min="0">
+          </div>
+          <div>
+            <label class="label" for="s-physical_cache_mib">Runtime physical cache (MiB)</label>
+            <input id="s-physical_cache_mib" name="physical_cache_mib" type="number" min="0">
+          </div>
+        </div>
+        <label class="check"><input type="checkbox" name="skip_lz4_verification"> Skip LZ4 verification by default</label>
+        <label class="check"><input type="checkbox" name="auto_loose_large"> Keep large poorly-compressible files loose (auto-loose)</label>
+        <label class="check"><input type="checkbox" name="use_hardlinks"> Hardlink loose files instead of copying (only works when source and output are on the same disk/share)</label>
+        <div class="row end"><span id="settings-saved" class="muted hidden">Saved ✓</span><button type="submit">Save</button></div>
+      </form>
+    </section>
+  </main>
+
+  <!-- folder picker -->
+  <dialog id="picker">
+    <div class="dialog-head">
+      <h3>Choose a folder</h3>
+      <button class="icon" data-close>✕</button>
+    </div>
+    <div class="row"><input id="picker-path" type="text" spellcheck="false"><button class="secondary" id="picker-go">Go</button></div>
+    <p class="hint">Click a folder to open it. The path in the field is what gets selected — you can type a new folder name for outputs.</p>
+    <div id="picker-list" class="picker-list"></div>
+    <div class="dialog-foot">
+      <span id="picker-disk" class="muted"></span>
+      <span class="spacer"></span>
+      <button class="secondary" data-close>Cancel</button>
+      <button id="picker-select">Select this folder</button>
+    </div>
+  </dialog>
+
+  <!-- TOML editor -->
+  <dialog id="editor" class="wide">
+    <div class="dialog-head">
+      <input id="editor-name" type="text" placeholder="profile.toml" spellcheck="false">
+      <button class="icon" data-close>✕</button>
+    </div>
+    <textarea id="editor-text" spellcheck="false"></textarea>
+    <div class="dialog-foot">
+      <span id="editor-error" class="error"></span>
+      <span class="spacer"></span>
+      <button class="secondary" data-close>Cancel</button>
+      <button id="editor-save">Save</button>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>

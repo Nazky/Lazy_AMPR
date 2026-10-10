@@ -1,0 +1,19 @@
+services:
+  lazy-ampr:
+    image: ghcr.io/tobim-dev/lazy_ampr:latest
+    # build: .            # uncomment to build locally instead of pulling
+    container_name: lazy-ampr
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PUID: "99"
+      PGID: "100"
+      UMASK: "000"
+      # Optional HTTP basic auth for the web UI:
+      # LAZY_AMPR_USERNAME: admin
+      # LAZY_AMPR_PASSWORD: change-me
+    volumes:
+      - ./config:/config
+      - /mnt/user/games:/games
+      - /mnt/user/games_ampr:/output

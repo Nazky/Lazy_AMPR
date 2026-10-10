@@ -601,6 +601,32 @@ def generate_trace_profile(traces_dir: Path, output_toml: Path, game_name: str,
             progress_callback(f"[OK] Generated metrics: {metrics_path.name}")
 
 
+def pack_stage_progress(fraction: float, stage: str) -> tuple[int, str] | None:
+    """Map a pack pipeline stage and its fraction to overall percent and status text."""
+    stage = stage.casefold()
+    if stage == "pack":
+        value = 15 + fraction * 70
+        status = "Packing LZ4 (AMPR) directly from source…"
+    elif stage == "verify":
+        value = 85 + fraction * 7
+        status = "Verifying packed chunks…"
+    elif stage == "compare":
+        value = 92 + fraction * 6
+        status = "Comparing against source…"
+    elif stage == "loose":
+        value = 98 + fraction
+        status = "Placing loose files…"
+    elif stage == "hash-source":
+        value = 15
+        status = "Recording source SHA-256 hashes…"
+    elif stage == "hash-output":
+        value = 99
+        status = "Recording output SHA-256 hashes…"
+    else:
+        return None
+    return int(value), status
+
+
 def run_lz4_pack(source_dir, output_dir, settings, custom_config=None,
                  traces_dir=None, game_name: str = "game",
                  lz4_level: int | None = None,

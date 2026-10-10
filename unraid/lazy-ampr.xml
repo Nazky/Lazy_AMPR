@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Lazy-AMPR</Name>
+  <Repository>ghcr.io/tobim-dev/lazy_ampr:latest</Repository>
+  <Registry>https://github.com/tobim-dev/lazy_ampr/pkgs/container/lazy_ampr</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/tobim-dev/lazy_ampr/issues</Support>
+  <Project>https://github.com/tobim-dev/lazy_ampr</Project>
+  <Overview>Lazy_AMPR web UI: build or extract AMPR LZ4 asset packs for PS5 game folders to reduce game size. Map the share with your game folders to /games and a share for the packed result to /output, then open the web UI.</Overview>
+  <Category>Tools: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/tobim-dev/lazy_ampr/main/unraid/lazy-ampr.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/tobim-dev/lazy_ampr/main/web/static/icon.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Web UI port" Target="8080" Default="8080" Mode="tcp" Description="Port of the web interface." Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Games" Target="/games" Default="/mnt/user/games" Mode="rw" Description="Share containing your PS5 game folders (each with sce_sys/param.json). Read-only (ro) also works for packing." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/games</Config>
+  <Config Name="Output" Target="/output" Default="/mnt/user/games_ampr" Mode="rw" Description="Where packed (&lt;game&gt;_AMPR) and extracted folders are written." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/games_ampr</Config>
+  <Config Name="AppData" Target="/config" Default="/mnt/user/appdata/lazy-ampr" Mode="rw" Description="Settings, state and TOML profiles." Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/lazy-ampr</Config>
+  <Config Name="Web UI password" Target="LAZY_AMPR_PASSWORD" Default="" Mode="" Description="Optional. When set, the web UI asks for user name and password (HTTP basic auth)." Type="Variable" Display="always" Required="false" Mask="true"/>
+  <Config Name="Web UI user name" Target="LAZY_AMPR_USERNAME" Default="admin" Mode="" Description="User name for the optional password." Type="Variable" Display="advanced" Required="false" Mask="false">admin</Config>
+  <Config Name="Browsable folders" Target="LAZY_AMPR_ROOTS" Default="/games,/output" Mode="" Description="Comma-separated container paths the web UI may browse. Add more if you map additional paths." Type="Variable" Display="advanced" Required="false" Mask="false">/games,/output</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID the app runs as (Unraid: 99 = nobody)." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID the app runs as (Unraid: 100 = users)." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="UMASK" Target="UMASK" Default="000" Mode="" Description="umask for created files." Type="Variable" Display="advanced" Required="false" Mask="false">000</Config>
+</Container>
